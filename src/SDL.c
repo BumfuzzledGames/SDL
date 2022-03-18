@@ -19,6 +19,7 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 #include "./SDL_internal.h"
+#include "fakekb.h"
 
 #if defined(__WIN32__)
 #include "core/windows/SDL_windows.h"
@@ -150,6 +151,9 @@ SDL_SetMainReady(void)
 int
 SDL_InitSubSystem(Uint32 flags)
 {
+    // Attempt to initialize fakekb any time any subsystem is initialized
+    fakekb_init();
+
     Uint32 flags_initialized = 0;
 
     if (!SDL_MainIsReady) {
