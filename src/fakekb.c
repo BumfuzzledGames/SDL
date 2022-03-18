@@ -127,23 +127,24 @@ void handle_client(char* buffer) {
 	char action;
 	int chars_read;
 
-	while (sscanf(buffer, " %" S(KEY_SIZE) "s %c%n", key, &action, &chars_read) == 2) {
+	while (sscanf(buffer, "{%" S(KEY_SIZE) "[^}]} %c %n", key, &action, &chars_read) == 2) {
 		buffer += chars_read;
 
-		int state = -1;
+		int state;
 		switch (action) {
 		case 'D': state = SDL_PRESSED; break;
 		case 'U': state = SDL_RELEASED; break;
+		default:  state = -1; break;
 		}
 		SDL_Scancode scancode = SDL_GetScancodeFromName(key);
 
-		SDL_LockMutex(mutex);
 		if (scancode != SDL_SCANCODE_UNKNOWN && action != -1 && num_received_keys != MAX_RECEIVED_KEYS) {
+			SDL_LockMutex(mutex);
 			received_keys[num_received_keys].scancode = scancode;
 			received_keys[num_received_keys].state = (Uint8)state;
 			num_received_keys++;
+			SDL_UnlockMutex(mutex);
 		}
-		SDL_UnlockMutex(mutex);
 	}
 #	undef S
 #	undef _S
