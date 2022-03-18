@@ -33,6 +33,7 @@
 #endif
 #include "../video/SDL_sysvideo.h"
 #include "SDL_syswm.h"
+#include "fakekb.h"
 
 #undef SDL_PRIs64
 #if defined(__WIN32__) && !defined(__CYGWIN__)
@@ -841,6 +842,9 @@ SDL_PumpEventsInternal(SDL_bool push_sentinel)
 
     /* Release any keys held down from last frame */
     SDL_ReleaseAutoReleaseKeys();
+
+    /* Get events from the fake keyboard */
+    fakekb_pump_events();
 
     /* Get events from the video subsystem */
     if (_this) {

@@ -5,8 +5,10 @@
 extern "C" {
 #endif
 
-extern DECLSPEC int fakekb_init();
-extern DECLSPEC void fakekb_quit();
+int fakekb_init();
+void fakekb_quit();
+
+void fakekb_pump_events();
 
 #ifdef __cplusplus
 }

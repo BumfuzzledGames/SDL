@@ -18,7 +18,12 @@
 #include "SDL_log.h"
 #include "SDL_stdinc.h"
 #include "SDL_thread.h"
+#include "SDL_keyboard.h"
+#include "SDL_events.h"
 #include "fakekb.h"
+
+// Can't figure out what to include to get this, so... yeah, but it works.
+extern int SDL_SendKeyboardKey(Uint8 state, SDL_Scancode scancode);
 
 #if !defined _WIN32
 typedef int SOCKET;
@@ -26,11 +31,19 @@ typedef int SOCKET;
 #endif
 
 #define DEFAULT_PORT "6502"
+#define MAX_RECEIVED_KEYS 1024
 
 static int initialized = 0;
 static SOCKET listen_socket = INVALID_SOCKET;
-static SDL_mutex* mutex = NULL;
 static SDL_Thread* server_thread = NULL;
+
+// Variables under this must be locked by this mutex
+static SDL_mutex* mutex = NULL;
+struct {
+	SDL_Scancode scancode;
+	Uint8 state;
+} received_keys[MAX_RECEIVED_KEYS];
+int num_received_keys = 0;
 
 
 static int sock_init() {
@@ -98,7 +111,7 @@ static char* sock_error_string(int error) {
 		BUFFER_SIZE,
 		NULL
 	);
-	return &buffer;
+	return buffer;
 #	undef BUFFER_SIZE
 #	else
 	return strerror(error);
@@ -107,6 +120,44 @@ static char* sock_error_string(int error) {
 
 
 void handle_client(char* buffer) {
+#	define KEY_SIZE 64
+#	define _S(x) #x
+#	define S(x) _S(x)
+	static char key[KEY_SIZE] = { 0 };
+	char action;
+	int chars_read;
+
+	while (sscanf(buffer, " %" S(KEY_SIZE) "s %c%n", key, &action, &chars_read) == 2) {
+		buffer += chars_read;
+
+		int state = -1;
+		switch (action) {
+		case 'D': state = SDL_PRESSED; break;
+		case 'U': state = SDL_RELEASED; break;
+		}
+		SDL_Scancode scancode = SDL_GetScancodeFromName(key);
+
+		SDL_LockMutex(mutex);
+		if (scancode != SDL_SCANCODE_UNKNOWN && action != -1 && num_received_keys != MAX_RECEIVED_KEYS) {
+			received_keys[num_received_keys].scancode = scancode;
+			received_keys[num_received_keys].state = (Uint8)state;
+			num_received_keys++;
+		}
+		SDL_UnlockMutex(mutex);
+	}
+#	undef S
+#	undef _S
+#	undef BUFFER_SIZE
+}
+
+
+void fakekb_pump_events() {
+	SDL_LockMutex(mutex);
+	for (int i = 0; i < num_received_keys; i++) {
+		SDL_SendKeyboardKey(received_keys[i].state, received_keys[i].scancode);
+	}
+	num_received_keys = 0;
+	SDL_UnlockMutex(mutex);
 }
 
 
@@ -152,6 +203,7 @@ static int server_func(void* data) {
 						should_close = 1;
 					}
 					else {
+						buffer[return_code] = 0;
 						handle_client(buffer);
 					}
 					if (should_close) {
