@@ -19,7 +19,6 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 #include "./SDL_internal.h"
-#include "fakekb.h"
 
 #if defined(__WIN32__)
 #include "core/windows/SDL_windows.h"
@@ -52,6 +51,7 @@
 #include "haptic/SDL_haptic_c.h"
 #include "joystick/SDL_joystick_c.h"
 #include "sensor/SDL_sensor_c.h"
+#include "fakekb.h"
 
 /* Initialization/Cleanup routines */
 #if !SDL_TIMERS_DISABLED
